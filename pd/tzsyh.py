@@ -1,10 +1,11 @@
 import tushare as ts
 import datetime
-#import pandas as pd
+import pandas as pd
+import os
 import matplotlib.pyplot as plt
 import tqdm
 
-
+stockfile = u'vipstocks.npy'
 
 def get_stocks_codes():
     '''
@@ -13,6 +14,9 @@ def get_stocks_codes():
     '''
     basics = ts.get_stock_basics()
     return basics.index
+
+def get_stock(code, start, end):
+    return ts.get_hist_data(code, start=start, end=end)
 
 def get_stock_ma5(code, sday, delta=1):
     '''
@@ -46,29 +50,47 @@ def get_double_raise(indexcodes):
     :param indexcodes:
     :return:
     '''
-    sday = datetime.date(2017,1,1)
-    eday = datetime.date.today()
-    ilen = len(indexcodes)
-    ret = []
-    #文本进度条提醒
-    for i in tqdm.trange(ilen):
-        code = indexcodes[i]
-        startval = get_stock_ma5(code, sday)
-        endval   = get_stock_ma5(code, eday, -1)
-        if endval >= startval*2:
-            ret.append(code)
+    if os.path.isfile(stockfile):
+        ret = pd.read_json(stockfile)
+    else:
+        sday = datetime.date(2017,1,1)
+        eday = datetime.date.today()
+        ilen = len(indexcodes)
+        ret = pd.DataFrame(columns=['code','sval','eval'])
+        #文本进度条提醒
+        for i in tqdm.trange(ilen):
+            code = indexcodes[i]
+            startval = get_stock_ma5(code, sday)
+            endval   = get_stock_ma5(code, eday, -1)
+            if endval >= startval*2:
+                ret.loc[ret.shape[0]] = [code, startval, endval]
+    if ret.shape[0]>0:
+        ret.to_json(stockfile)
     return ret
 
-def show_stocks(stocks):
+def show_stocks(stocks, stockcount=5):
     '''
     显示股票对应的价格变化曲线 -每页显示5条记录
     :return:
     '''
-    print( stocks)
+    # DataFrame排序，最大的5个股票
+    stocks['diff'] = stocks['eval'] - stocks['sval']
+    showdatas = stocks.sort_values(by='diff', ascending=False).iloc[: stockcount]
+    # print( showdatas)
+    #获取5个股票的所有对应值
+    showFrame = pd.DataFrame();
+    for _,row in showdatas.iterrows():
+        pf = get_stock( row['code'])
+        pf['code'] = row['code']
+        showFrame.append(pf[['code','close','ma5']], ignore_index=True)
+
+    showFrame.plot()
+    plt.show()
 
 def main():
     codes = get_stocks_codes()
     stocks = get_double_raise(codes)
+
     show_stocks( stocks)
 
 if __name__ == '__main__':
