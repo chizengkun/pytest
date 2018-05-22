@@ -2,10 +2,12 @@ import tushare as ts
 import datetime
 import pandas as pd
 import os
+#import numpy as np
 import matplotlib.pyplot as plt
 import tqdm
 
 stockfile = u'vipstocks.npy'
+stockdic = {}
 
 def get_stocks_codes():
     '''
@@ -13,7 +15,9 @@ def get_stocks_codes():
     :return: Index, 股票代码索引
     '''
     basics = ts.get_stock_basics()
-    return basics.index
+    for index, row in basics.iterrows():
+        stockdic[index] = row['name']
+    return basics.index.values
 
 def get_stock(code, start, end):
     return ts.get_hist_data(code, start=start, end=end)
@@ -44,28 +48,30 @@ def get_stock_ma5(code, sday, delta=1):
         break
     return retval
 
-def get_double_raise(indexcodes):
+def get_double_raise(valcodes):
     '''
     获取成长性超过2倍的股票 从 2017-01-01 到 今天为止
     :param indexcodes:
     :return:
     '''
     if os.path.isfile(stockfile):
-        ret = pd.read_json(stockfile)
+        ret = pd.read_csv(stockfile)
     else:
-        sday = datetime.date(2017,1,1)
+        sday = datetime.date(2017,1,2)
         eday = datetime.date.today()
-        ilen = len(indexcodes)
+        ilen = len(valcodes)
         ret = pd.DataFrame(columns=['code','sval','eval'])
+        #ret['code'] = ret['code'].astype('string')
         #文本进度条提醒
         for i in tqdm.trange(ilen):
-            code = indexcodes[i]
+            code = valcodes[i]
             startval = get_stock_ma5(code, sday)
             endval   = get_stock_ma5(code, eday, -1)
-            if endval >= startval*2:
+            #如果为 0 了就是存在问题的
+            if startval>0 and endval>0 and endval >= startval*2:
                 ret.loc[ret.shape[0]] = [code, startval, endval]
     if ret.shape[0]>0:
-        ret.to_json(stockfile)
+        ret.to_csv(stockfile)
     return ret
 
 def show_stocks(stocks, stockcount=5):
@@ -75,17 +81,28 @@ def show_stocks(stocks, stockcount=5):
     '''
     # DataFrame排序，最大的5个股票
     stocks['diff'] = stocks['eval'] - stocks['sval']
-    showdatas = stocks.sort_values(by='diff', ascending=False).iloc[: stockcount]
-    # print( showdatas)
+    showdatas = stocks.sort_values(by='diff', ascending=False)[['code','sval','eval','diff']]
+    codes = []
+    for _, row in showdatas.iterrows():
+        codes.append( str(int( row['code'])).zfill(6))
+    #print( showdatas)
     #获取5个股票的所有对应值
-    showFrame = pd.DataFrame();
-    for _,row in showdatas.iterrows():
-        pf = get_stock( row['code'])
-        pf['code'] = row['code']
-        showFrame.append(pf[['code','close','ma5']], ignore_index=True)
 
-    showFrame.plot()
-    plt.show()
+    for code in codes:
+        pf = get_stock(  code, datetime.date(2017,1,2).strftime('%Y-%m-%d'), datetime.date.today().strftime('%Y-%m-%d'))
+        vf = pf[['close', 'ma5']]
+        vf['code'] = 'A股'+code
+        showFrame = pd.DataFrame(columns=['code', 'close', 'ma5']);
+        showFrame = showFrame.append( vf)
+        showFrame.sort_index(ascending=False)
+        showFrame.plot(use_index=True, title= code +'--'+ stockdic.get(code))
+
+        plt.show()
+
+    #showFrame['close'] =showFrame['close'].astype('float')
+    #showFrame['ma5'] = showFrame['ma5'].astype('float')
+    #print(showFrame)
+    #
 
 def main():
     codes = get_stocks_codes()
