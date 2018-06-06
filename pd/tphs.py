@@ -3,8 +3,8 @@ import numpy as np
 
 
 N = 7
-noUsed =    (40,    68,     229,    738,    593,    1092,   1516)
-Used =      (4,     113,    518,    193,    495,    358,    284)
+noUsed =    (41,    72,     167,    1039,    562,    693,   1518)
+Used =      (3,     109,    580,    411,    526,    237,    282)
 xticklabels=('辽源','雄安', '仙桃', '松原' , '四平',  '白山',  '吉林')
 ind1 = np.arange(N)    # the x locations for the groups
 width = 0.35       # the width of the bars: can also be len(x) sequence
