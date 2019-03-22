@@ -1,8 +1,9 @@
 import jieba
 
 excludes = {"  ", "就是","不是","两个","一个","如果","这个","那个"}
-jpm = open('water.txt','rb').read()
+jpm = open('jpm.txt','rb').read()
 #jieba.enable_parallel(4)
+print(jpm)
 words = jieba.lcut(jpm)
 counts = {}
 
